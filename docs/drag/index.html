@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drag to archive | playground</title>
+<script>if (new URLSearchParams(location.search).has("embed")) document.documentElement.classList.add("embed");</script>
+<link rel="icon" href="../favicon.svg">
+<link rel="stylesheet" href="../fonts/fonts.css">
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../base.css">
+<style>
+  .inbox { width: min(420px, 100%); display: grid; gap: var(--space-2); }
+  .slot { position: relative; border-radius: var(--radius-md); overflow: hidden; transition: height 260ms ease, margin 260ms ease, opacity 200ms; }
+  .slot.gone { opacity: 0; }
+  /* Revealed behind the card as it moves. */
+  .behind {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: flex-end;
+    padding: 0 var(--space-5); background: var(--color-line); color: var(--color-ink-muted);
+    font-size: var(--text-sm); font-weight: var(--weight-medium); border-radius: var(--radius-md);
+    transition: background 150ms, color 150ms;
+  }
+  .slot.armed .behind { background: var(--color-approve); color: var(--color-surface); }
+  .item {
+    position: relative; background: var(--color-paper); border: 1px solid var(--color-line); border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-4); cursor: grab; touch-action: pan-y; user-select: none;
+    display: grid; gap: 2px;
+  }
+  .item:active { cursor: grabbing; }
+  .item b { font-weight: var(--weight-semibold); font-size: var(--text-sm); }
+  .item span { font-size: var(--text-sm); color: var(--color-ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item.settle { transition: transform 420ms cubic-bezier(.2, 1.4, .4, 1); }
+  .item.fling { transition: transform 220ms ease-in; }
+  .empty { text-align: center; color: var(--color-ink-muted); font-size: var(--text-sm); padding: var(--space-6) 0; }
+  .meter { text-align: center; font-size: var(--text-xs); color: var(--color-ink-muted); margin-top: var(--space-4); font-variant-numeric: tabular-nums; min-height: 1.5em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="top"><a class="home" href="../">playground</a><a href="https://github.com/manya-5/playground/tree/main/docs/drag">Source</a></nav>
+  <header class="exp-head">
+    <h1>Drag to archive</h1>
+    <p>Drag a message left. Let go past the line, or flick it, and it's archived. Let go early and it springs back. Arrow keys work too.</p>
+  </header>
+  <div class="stage">
+    <div>
+      <div class="inbox" id="inbox"></div>
+      <p class="meter" id="meter" aria-live="polite"></p>
+    </div>
+  </div>
+  <section class="notes">
+    <div><h2>Distance or speed</h2><p>A message is archived if you drag it past 40% of its width or let go while moving fast. Short, quick flicks count.</p></div>
+    <div><h2>Resistance past the edge</h2><p>Dragging right has nowhere to go, so the card follows your finger at a third of the speed. You can feel the edge.</p></div>
+    <div><h2>The color tells you first</h2><p>The green shows up the moment letting go would archive, so there are no surprises when you release.</p></div>
+  </section>
+</div>
+<script>
+  const MESSAGES = [
+    ["Priya", "Notes from Tuesday's review are in the doc"],
+    ["Build bot", "Preview for branch onboarding-copy is ready"],
+    ["Sam", "Can we move the critique to Thursday?"],
+    ["Calendar", "Design sync starts in 15 minutes"],
+  ];
+  const inbox = document.getElementById("inbox");
+  const meter = document.getElementById("meter");
+
+  function addItem([who, text]) {
+    const slot = document.createElement("div");
+    slot.className = "slot";
+    slot.innerHTML = `<div class="behind">Archive</div><div class="item" tabindex="0" role="button" aria-label="${who}: ${text}. Press left arrow to archive."><b>${who}</b><span>${text}</span></div>`;
+    inbox.append(slot);
+    wire(slot);
+  }
+
+  function archive(slot, item) {
+    const neighbor = slot.nextElementSibling || slot.previousElementSibling;
+    const hadFocus = document.activeElement === item;
+    item.classList.add("fling");
+    item.style.transform = `translateX(${-slot.offsetWidth - 40}px)`;
+    setTimeout(() => {
+      slot.style.height = slot.offsetHeight + "px";
+      requestAnimationFrame(() => { slot.classList.add("gone"); slot.style.height = "0px"; slot.style.marginTop = "-8px"; });
+      setTimeout(() => {
+        slot.remove();
+        if (!inbox.children.length) empty();
+        else if (hadFocus && neighbor) neighbor.querySelector(".item").focus();
+      }, 280);
+    }, 220);
+    meter.textContent = "Archived";
+  }
+
+  function empty() {
+    inbox.innerHTML = `<div class="empty">Inbox is clear. <button class="btn quiet" type="button" id="refill">Bring them back</button></div>`;
+    document.getElementById("refill").onclick = () => { inbox.innerHTML = ""; MESSAGES.forEach(addItem); meter.textContent = ""; };
+  }
+
+  function wire(slot) {
+    const item = slot.querySelector(".item");
+    let startX = 0, x = 0, dragging = false, samples = [];
+
+    item.addEventListener("pointerdown", (e) => {
+      dragging = true; startX = e.clientX; x = 0; samples = [[e.timeStamp, e.clientX]];
+      item.classList.remove("settle", "fling");
+      item.setPointerCapture(e.pointerId);
+    });
+    item.addEventListener("pointermove", (e) => {
+      if (!dragging) return;
+      const dx = e.clientX - startX;
+      x = dx > 0 ? dx / 3 : dx; // resistance when dragging the wrong way
+      item.style.transform = `translateX(${x}px)`;
+      samples.push([e.timeStamp, e.clientX]);
+      if (samples.length > 5) samples.shift();
+      const armed = -x > slot.offsetWidth * 0.4;
+      slot.classList.toggle("armed", armed);
+      meter.textContent = `${Math.round(-Math.min(x, 0) / slot.offsetWidth * 100)}% of the way`;
+    });
+    const release = () => {
+      if (!dragging) return;
+      dragging = false;
+      const [t0, x0] = samples[0], [t1, x1] = samples[samples.length - 1];
+      const velocity = (x1 - x0) / Math.max(t1 - t0, 1); // px per ms, negative is left
+      if (-x > slot.offsetWidth * 0.4 || (velocity < -0.6 && x < -20)) return archive(slot, item);
+      slot.classList.remove("armed");
+      item.classList.add("settle");
+      item.style.transform = "translateX(0)";
+      meter.textContent = x < -4 ? "Not far enough, so it stayed" : "";
+    };
+    item.addEventListener("pointerup", release);
+    item.addEventListener("pointercancel", release);
+    item.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowLeft") { e.preventDefault(); slot.classList.add("armed"); archive(slot, item); }
+    });
+  }
+
+  MESSAGES.forEach(addItem);
+</script>
+</body>
+</html>

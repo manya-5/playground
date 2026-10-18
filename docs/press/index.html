@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Button press | playground</title>
+<script>if (new URLSearchParams(location.search).has("embed")) document.documentElement.classList.add("embed");</script>
+<link rel="icon" href="../favicon.svg">
+<link rel="stylesheet" href="../fonts/fonts.css">
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../base.css">
+<style>
+  .press-row { display: flex; flex-wrap: wrap; gap: var(--space-6); align-items: center; justify-content: center; }
+  .press {
+    --depth: 6px;
+    position: relative;
+    border: 0; padding: 0; background: none; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  /* The base sits still. The face moves down into it. */
+  .press .base {
+    position: absolute; inset: var(--depth) 0 0 0;
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--color-accent) 62%, var(--color-ink));
+  }
+  .press .face {
+    position: relative; display: block;
+    padding: 18px 34px; border-radius: 14px;
+    background: var(--color-accent); color: var(--color-on-accent);
+    font-weight: var(--weight-semibold); font-size: var(--text-md);
+    transform: translateY(0);
+    /* Release uses a slight overshoot so the button feels like it springs back. */
+    transition: transform 320ms cubic-bezier(.3, 1.6, .5, 1);
+  }
+  .press { padding-bottom: var(--depth); }
+  .press.down .face { transform: translateY(calc(var(--depth) - 1px)); transition: transform 60ms ease-out; }
+
+  .press.quiet .base { background: var(--color-line); }
+  .press.quiet .face { background: var(--color-surface); color: var(--color-ink); box-shadow: inset 0 0 0 1px var(--color-line); }
+
+  .count { margin-top: var(--space-6); text-align: center; color: var(--color-ink-muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; min-height: 1.5em; }
+  .stage-inner { display: grid; justify-items: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="top"><a class="home" href="../">playground</a><a href="https://github.com/manya-5/playground/tree/main/docs/press">Source</a></nav>
+  <header class="exp-head">
+    <h1>Button press</h1>
+    <p>A button that goes down fast and comes back with a little spring. Try the mouse, a finger, or the space bar.</p>
+  </header>
+  <div class="stage">
+    <div class="stage-inner">
+      <div class="press-row">
+        <button class="press" type="button" data-label="Save"><span class="base"></span><span class="face">Save draft</span></button>
+        <button class="press quiet" type="button" data-label="Cancel"><span class="base"></span><span class="face">Cancel</span></button>
+      </div>
+      <p class="count" id="count" aria-live="polite">Press one</p>
+    </div>
+  </div>
+  <section class="notes">
+    <div><h2>Fast down, slow up</h2><p>Pressing takes 60ms so it feels instant. Releasing takes 320ms with an overshoot curve, which reads as a spring.</p></div>
+    <div><h2>Only the face moves</h2><p>The darker base never moves. The face drops into it, so the button looks pressed without shadows changing.</p></div>
+    <div><h2>Same feel everywhere</h2><p>Pointer, touch and keyboard all set the same pressed state. Dragging off the button cancels the press, like a native button.</p></div>
+  </section>
+</div>
+<script>
+  const count = document.getElementById("count");
+  let n = 0;
+  document.querySelectorAll(".press").forEach((btn) => {
+    const down = () => btn.classList.add("down");
+    const up = () => btn.classList.remove("down");
+    btn.addEventListener("pointerdown", (e) => { btn.setPointerCapture(e.pointerId); btn.dataset.cancel = ""; down(); });
+    btn.addEventListener("pointerup", up);
+    btn.addEventListener("pointercancel", up);
+    btn.addEventListener("lostpointercapture", up);
+    btn.addEventListener("pointermove", (e) => {
+      if (!btn.classList.contains("down")) return;
+      const r = btn.getBoundingClientRect();
+      const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+      if (!inside) { btn.dataset.cancel = "1"; up(); }
+    });
+    btn.addEventListener("keydown", (e) => { btn.dataset.cancel = ""; if ((e.key === " " || e.key === "Enter") && !e.repeat) down(); });
+    btn.addEventListener("keyup", up);
+    btn.addEventListener("blur", up);
+    btn.addEventListener("click", () => { if (btn.dataset.cancel) return; n++; count.textContent = `${btn.dataset.label} pressed. ${n} ${n === 1 ? "press" : "presses"} so far.`; });
+  });
+</script>
+</body>
+</html>

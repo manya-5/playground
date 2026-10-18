@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loading state | playground</title>
+<script>if (new URLSearchParams(location.search).has("embed")) document.documentElement.classList.add("embed");</script>
+<link rel="icon" href="../favicon.svg">
+<link rel="stylesheet" href="../fonts/fonts.css">
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../base.css">
+<style>
+  .panel { width: min(440px, 100%); }
+  .card {
+    background: var(--color-paper); border: 1px solid var(--color-line); border-radius: var(--radius-lg);
+    padding: var(--space-5);
+  }
+  .card h2 { font-family: var(--font-serif); font-weight: 400; font-size: var(--text-lg); margin: 0 0 var(--space-1); }
+  .sub { color: var(--color-ink-muted); font-size: var(--text-sm); margin: 0 0 var(--space-5); font-variant-numeric: tabular-nums; }
+
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+  .steps li { display: grid; grid-template-columns: 20px 1fr auto; align-items: center; gap: var(--space-3); font-size: var(--text-sm); color: var(--color-ink-muted); }
+  .steps li[data-state="active"], .steps li[data-state="done"] { color: var(--color-ink); }
+  .steps .t { font-variant-numeric: tabular-nums; color: var(--color-ink-muted); font-size: var(--text-xs); }
+
+  .mark { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--color-line); display: grid; place-items: center; }
+  li[data-state="active"] .mark { border-color: var(--color-accent); border-right-color: transparent; animation: spin .8s linear infinite; }
+  li[data-state="done"] .mark { border-color: var(--color-approve); background: var(--color-approve); }
+  li[data-state="done"] .mark::after { content: ""; width: 8px; height: 4px; border: 2px solid var(--color-surface); border-top: 0; border-right: 0; transform: translateY(-1px) rotate(-45deg); }
+  li[data-state="stopped"] .mark { border-style: dashed; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* The bar fills only as fast as real steps finish. It never pretends. */
+  .bar { height: 4px; border-radius: 4px; background: var(--color-line); margin: var(--space-5) 0; overflow: hidden; }
+  .bar span { display: block; height: 100%; width: 0; background: var(--color-accent); transition: width 400ms ease-out; }
+
+  .result { font-size: var(--text-sm); }
+  .row { display: flex; gap: var(--space-2); justify-content: space-between; align-items: center; }
+  .slow { color: var(--color-caution); font-size: var(--text-sm); margin: var(--space-3) 0 0; display: none; }
+  .slow.show { display: block; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="top"><a class="home" href="../">playground</a><a href="https://github.com/manya-5/playground/tree/main/docs/loading">Source</a></nav>
+  <header class="exp-head">
+    <h1>Loading state</h1>
+    <p>A wait that tells you what it's doing, how long each part took, and lets you stop it. The bar only moves when a real step finishes.</p>
+  </header>
+  <div class="stage">
+    <div class="panel">
+      <div class="card" aria-live="polite">
+        <h2 id="title">Import 240 contacts</h2>
+        <p class="sub" id="sub">Ready when you are</p>
+        <ol class="steps" id="steps"></ol>
+        <div class="bar" aria-hidden="true"><span id="bar"></span></div>
+        <div class="row">
+          <span class="result" id="result"></span>
+          <span>
+            <button class="btn" type="button" id="stop" hidden>Stop</button>
+            <button class="btn primary" type="button" id="go">Start import</button>
+          </span>
+        </div>
+        <p class="slow" id="slow">This step is taking longer than usual. You can keep waiting or stop.</p>
+      </div>
+    </div>
+  </div>
+  <section class="notes">
+    <div><h2>Name the step</h2><p>"Checking for duplicates" is easier to wait for than a spinner, because you know what's happening and roughly how much is left.</p></div>
+    <div><h2>Honest progress</h2><p>The bar moves in step-sized jumps. It doesn't creep forward on a timer, so it never stalls at 99%.</p></div>
+    <div><h2>A way out</h2><p>Stop is always there, and it says exactly what changed, which here is nothing. If a step runs long, the card says so instead of spinning quietly.</p></div>
+  </section>
+</div>
+<script>
+  const STEPS = [
+    { label: "Reading the file", ms: 900 },
+    { label: "Checking for duplicates", ms: 2200, slow: true },
+    { label: "Matching companies", ms: 1300 },
+    { label: "Saving contacts", ms: 1100 },
+  ];
+  const $ = (id) => document.getElementById(id);
+  const list = $("steps"), bar = $("bar"), sub = $("sub"), result = $("result"), go = $("go"), stop = $("stop"), slow = $("slow");
+  let timer, slowTimer, tick, started, running = false, stopped = false;
+
+  function render(activeIndex, times) {
+    list.innerHTML = "";
+    STEPS.forEach((s, i) => {
+      const li = document.createElement("li");
+      li.dataset.state = i < activeIndex ? "done" : i === activeIndex && running ? "active" : stopped && i === activeIndex ? "stopped" : "todo";
+      li.innerHTML = `<span class="mark"></span><span>${s.label}</span><span class="t">${times[i] != null ? (times[i] / 1000).toFixed(1) + "s" : ""}</span>`;
+      list.append(li);
+    });
+    bar.style.width = (activeIndex / STEPS.length) * 100 + "%";
+  }
+
+  function run() {
+    running = true; stopped = false;
+    go.hidden = true; stop.hidden = false; result.textContent = "";
+    const times = [];
+    started = performance.now();
+    let i = 0, stepStart = performance.now();
+    tick = setInterval(() => { sub.textContent = `Working for ${((performance.now() - started) / 1000).toFixed(0)}s`; }, 250);
+    const next = () => {
+      render(i, times);
+      if (i >= STEPS.length) return finish(true);
+      stepStart = performance.now();
+      if (STEPS[i].slow) slowTimer = setTimeout(() => slow.classList.add("show"), 1500);
+      timer = setTimeout(() => {
+        clearTimeout(slowTimer); slow.classList.remove("show");
+        times[i] = performance.now() - stepStart; i++; next();
+      }, STEPS[i].ms);
+    };
+    stop.onclick = () => {
+      clearTimeout(timer); clearTimeout(slowTimer); slow.classList.remove("show");
+      running = false; stopped = true; render(i, times); finish(false, i);
+    };
+    next();
+  }
+
+  function finish(ok, doneCount) {
+    clearInterval(tick); running = false;
+    stop.hidden = true; go.hidden = false;
+    const secs = ((performance.now() - started) / 1000).toFixed(1);
+    if (ok) {
+      sub.textContent = `Finished in ${secs}s`;
+      result.innerHTML = `<span style="color:var(--color-approve)">240 contacts imported</span>`;
+      go.textContent = "Run again";
+    } else {
+      sub.textContent = `Stopped after ${secs}s`;
+      result.textContent = "Nothing was saved. Your contacts are unchanged.";
+      go.textContent = "Start again";
+    }
+  }
+
+  go.addEventListener("click", run);
+  render(0, []);
+</script>
+</body>
+</html>

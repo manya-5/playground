@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hold to confirm | playground</title>
+<script>if (new URLSearchParams(location.search).has("embed")) document.documentElement.classList.add("embed");</script>
+<link rel="icon" href="../favicon.svg">
+<link rel="stylesheet" href="../fonts/fonts.css">
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../base.css">
+<style>
+  .box { width: min(400px, 100%); text-align: center; }
+  .box h2 { font-family: var(--font-serif); font-weight: 400; font-size: var(--text-lg); margin: 0 0 var(--space-2); }
+  .box p { color: var(--color-ink-muted); font-size: var(--text-sm); margin: 0 0 var(--space-6); }
+  .hold {
+    position: relative; overflow: hidden; width: 100%;
+    padding: var(--space-4); border-radius: var(--radius-md); cursor: pointer;
+    border: 1.5px solid var(--color-reject); background: var(--color-surface); color: var(--color-reject);
+    font-weight: var(--weight-semibold); font-size: var(--text-base);
+    touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  /* The fill grows while held and drains back quickly when you let go early. */
+  .hold .fill { position: absolute; inset: 0; background: var(--color-reject); transform: scaleX(0); transform-origin: left; }
+  .hold .label { position: relative; mix-blend-mode: normal; }
+  .hold .label.over { position: absolute; inset: 0; display: grid; place-items: center; color: var(--color-surface); clip-path: inset(0 100% 0 0); }
+  .hold.done { background: var(--color-reject); color: var(--color-surface); }
+  .status { margin-top: var(--space-4); font-size: var(--text-sm); min-height: 1.5em; }
+  .reset { margin-top: var(--space-2); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="top"><a class="home" href="../">playground</a><a href="https://github.com/manya-5/playground/tree/main/docs/hold">Source</a></nav>
+  <header class="exp-head">
+    <h1>Hold to confirm</h1>
+    <p>For the one action you can't undo. Press and hold for a second and a half. Let go early and nothing happens.</p>
+  </header>
+  <div class="stage">
+    <div class="box">
+      <h2>Delete the Q3 research project</h2>
+      <p>This removes 14 interviews and their notes for everyone on the team.</p>
+      <button class="hold" id="hold" type="button" aria-describedby="hint">
+        <span class="fill" id="fill"></span>
+        <span class="label">Hold to delete</span>
+        <span class="label over" id="over" aria-hidden="true">Hold to delete</span>
+      </button>
+      <p class="status" id="status" aria-live="assertive"><span id="hint">Hold the button, or hold the space bar while it's focused.</span></p>
+    </div>
+  </div>
+  <section class="notes">
+    <div><h2>Effort matches weight</h2><p>A click is cheap, so it's too easy for something permanent. Holding asks for a moment of intent without a second dialog.</p></div>
+    <div><h2>Fills slow, drains fast</h2><p>Holding fills the bar over 1.5 seconds. Letting go drains it in a fifth of that, so a near miss is obvious and nothing fires by accident.</p></div>
+    <div><h2>Text stays readable</h2><p>The label is drawn twice, once in red and once in white, and the white copy is revealed with the fill. It never sits at low contrast mid-way.</p></div>
+  </section>
+</div>
+<script>
+  const HOLD_MS = 1500, DRAIN_MS = 300;
+  const btn = document.getElementById("hold"), fill = document.getElementById("fill"), over = document.getElementById("over"), status = document.getElementById("status");
+  let progress = 0, holding = false, done = false, last = 0, raf;
+
+  function paint() {
+    fill.style.transform = `scaleX(${progress})`;
+    over.style.clipPath = `inset(0 ${100 - progress * 100}% 0 0)`;
+  }
+  function loop(now) {
+    const dt = now - last; last = now;
+    progress += holding ? dt / HOLD_MS : -dt / DRAIN_MS;
+    progress = Math.min(Math.max(progress, 0), 1);
+    paint();
+    if (progress >= 1 && holding) return complete();
+    if (holding || progress > 0) raf = requestAnimationFrame(loop);
+  }
+  function start() {
+    if (done || holding) return;
+    holding = true; status.textContent = "Keep holding";
+    cancelAnimationFrame(raf); last = performance.now(); raf = requestAnimationFrame(loop);
+  }
+  function stop() {
+    if (!holding || done) return;
+    holding = false; status.textContent = "Let go early. Nothing was deleted.";
+    cancelAnimationFrame(raf); last = performance.now(); raf = requestAnimationFrame(loop);
+  }
+  function complete() {
+    holding = false; done = true;
+    btn.classList.add("done");
+    btn.querySelector(".label").textContent = "Deleted";
+    over.textContent = "Deleted";
+    status.innerHTML = 'Project deleted. <button class="btn quiet reset" type="button" id="reset">Reset demo</button>';
+    document.getElementById("reset").onclick = reset;
+  }
+  function reset() {
+    done = false; progress = 0; paint();
+    btn.classList.remove("done");
+    btn.querySelector(".label").textContent = "Hold to delete";
+    over.textContent = "Hold to delete";
+    status.textContent = "Hold the button, or hold the space bar while it's focused.";
+    btn.focus();
+  }
+
+  btn.addEventListener("pointerdown", (e) => { btn.setPointerCapture(e.pointerId); start(); });
+  btn.addEventListener("pointerup", stop);
+  btn.addEventListener("pointercancel", stop);
+  btn.addEventListener("keydown", (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); if (!e.repeat) start(); } });
+  btn.addEventListener("keyup", (e) => { if (e.key === " " || e.key === "Enter") stop(); });
+  btn.addEventListener("blur", stop);
+  btn.addEventListener("contextmenu", (e) => e.preventDefault());
+</script>
+</body>
+</html>

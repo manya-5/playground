@@ -1,0 +1,59 @@
+/* Shared layout for the gallery and every experiment page. Values come from tokens.css. */
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font: var(--weight-regular) var(--text-base)/var(--leading-body) var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--color-accent); }
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; }
+button { font: inherit; color: inherit; }
+
+.wrap { max-width: 1040px; margin: 0 auto; padding: 0 var(--space-5); }
+.top { display: flex; justify-content: space-between; align-items: center; padding: var(--space-5) 0; font-size: var(--text-sm); }
+.top a { color: var(--color-ink); text-decoration: none; }
+.top .home { font-family: var(--font-serif); font-size: var(--text-md); }
+
+/* Experiment page */
+.exp-head { padding: var(--space-6) 0 var(--space-5); max-width: 38rem; }
+.exp-head h1 { font-family: var(--font-serif); font-weight: 400; font-size: var(--text-2xl); line-height: var(--leading-tight); margin: 0 0 var(--space-3); }
+.exp-head p { margin: 0; color: var(--color-ink-muted); font-size: var(--text-md); line-height: var(--leading-snug); }
+
+.stage {
+  position: relative;
+  min-height: 420px;
+  display: grid;
+  place-items: center;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  padding: var(--space-6) var(--space-5);
+}
+
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-5); padding: var(--space-6) 0 var(--space-8); font-size: var(--text-sm); color: var(--color-ink-muted); }
+.notes h2 { font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--color-ink); margin: 0 0 var(--space-2); }
+.notes p { margin: 0; }
+.notes code { font-size: 0.92em; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  font-weight: var(--weight-medium); font-size: var(--text-sm);
+  padding: var(--space-2) var(--space-4); border-radius: var(--radius-md);
+  border: 1px solid var(--color-line); background: var(--color-surface); color: var(--color-ink); cursor: pointer;
+}
+.btn.primary { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-on-accent); }
+.btn.quiet { border-color: transparent; background: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }
+}
+
+/* Embedded previews on the gallery page show only the stage. */
+html.embed body { background: var(--color-surface); }
+html.embed .top, html.embed .exp-head, html.embed .notes { display: none; }
+html.embed .wrap { max-width: none; padding: 0; }
+html.embed .stage { min-height: 100vh; border: 0; border-radius: 0; }

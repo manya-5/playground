@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>playground | Manya Singh</title>
+<meta name="description" content="Small interaction and motion experiments, each with its own live demo.">
+<link rel="icon" href="favicon.svg">
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="base.css">
+<style>
+  .intro { padding: var(--space-7) 0 var(--space-6); display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); align-items: end; }
+  .intro h1 { font-family: var(--font-serif); font-weight: 400; font-size: clamp(3rem, 8vw, 5.5rem); line-height: 1; letter-spacing: -0.02em; margin: 0; }
+  .intro p { margin: 0; color: var(--color-ink-muted); font-size: var(--text-md); line-height: var(--leading-snug); max-width: 30ch; }
+
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-5); padding-bottom: var(--space-8); }
+  .grid a.exp { text-decoration: none; color: inherit; display: grid; gap: var(--space-3); }
+  .grid a.exp:first-child { grid-column: span 2; }
+  .frame {
+    position: relative; aspect-ratio: 16 / 9; overflow: hidden;
+    border: 1px solid var(--color-line); border-radius: var(--radius-lg); background: var(--color-surface);
+  }
+  .grid a.exp:first-child .frame { aspect-ratio: 21 / 8; }
+  /* Each preview is the real demo page in embed mode, showing only its stage. */
+  .frame iframe {
+    position: absolute; top: 0; left: 0; border: 0; pointer-events: none;
+    width: 1040px; transform-origin: top left;
+  }
+  .meta h2 { font-size: var(--text-base); font-weight: var(--weight-semibold); margin: 0; }
+  .meta p { font-size: var(--text-sm); color: var(--color-ink-muted); margin: 2px 0 0; }
+  .grid a.exp:hover h2, .grid a.exp:focus-visible h2 { text-decoration: underline; text-underline-offset: 3px; }
+
+  @media (max-width: 760px) {
+    .intro { grid-template-columns: 1fr; padding-top: var(--space-5); }
+    .grid { grid-template-columns: 1fr; }
+    .grid a.exp:first-child { grid-column: auto; }
+    .grid a.exp:first-child .frame { aspect-ratio: 16 / 9; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="top"><a class="home" href="https://github.com/manya-5">manya-5</a><a href="https://github.com/manya-5/playground">Source</a></nav>
+  <header class="intro">
+    <h1>playground</h1>
+    <p>Small interaction and motion experiments. Each one is a single HTML file you can open and take apart.</p>
+  </header>
+  <div class="grid" id="grid">
+    <a class="exp" href="hold/"><div class="frame"><iframe src="hold/?embed" title="Hold to confirm preview" tabindex="-1" loading="lazy"></iframe></div>
+      <div class="meta"><h2>Hold to confirm</h2><p>For actions you can't undo. Hold to delete, let go early and nothing happens.</p></div></a>
+    <a class="exp" href="press/"><div class="frame"><iframe src="press/?embed" title="Button press preview" tabindex="-1" loading="lazy"></iframe></div>
+      <div class="meta"><h2>Button press</h2><p>Fast down, springy up. Works with pointer, touch and keyboard.</p></div></a>
+    <a class="exp" href="loading/"><div class="frame"><iframe src="loading/?embed" title="Loading state preview" tabindex="-1" loading="lazy"></iframe></div>
+      <div class="meta"><h2>Loading state</h2><p>Named steps, honest progress and a way to stop.</p></div></a>
+    <a class="exp" href="drag/"><div class="frame"><iframe src="drag/?embed" title="Drag to archive preview" tabindex="-1" loading="lazy"></iframe></div>
+      <div class="meta"><h2>Drag to archive</h2><p>Distance or a quick flick archives. Short drags spring back.</p></div></a>
+    <a class="exp" href="toast/"><div class="frame"><iframe src="toast/?embed" title="Toast preview" tabindex="-1" loading="lazy"></iframe></div>
+      <div class="meta"><h2>Toast with undo</h2><p>Delete now, undo for five seconds, and the clock waits while you aim.</p></div></a>
+  </div>
+</div>
+<script>
+  // Each preview is the demo's stage at desktop width, scaled down to fit its frame.
+  function fit() {
+    document.querySelectorAll(".frame").forEach((frame) => {
+      const iframe = frame.querySelector("iframe");
+      const scale = frame.clientWidth / 1040;
+      iframe.style.height = frame.clientHeight / scale + "px";
+      iframe.style.transform = `scale(${scale})`;
+    });
+  }
+  addEventListener("resize", fit);
+  fit();
+</script>
+</body>
+</html>
